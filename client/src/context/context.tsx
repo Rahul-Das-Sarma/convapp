@@ -1,10 +1,19 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
+interface IAuthProvider {
+  children: ReactNode;
+}
 const AuthContext = createContext(null);
 export const useAuthContext = () => useContext(AuthContext);
 
-const AuthProvider = ({ children }) => {
+const AuthProvider = ({ children }: IAuthProvider) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useLocalStorage("user", null);
   const [token, setToken] = useLocalStorage("token", null);
