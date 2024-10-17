@@ -1,40 +1,41 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthContext } from "../context/context";
 import ChatList from "../components/chatList";
 import SingleChat from "../components/singleChat";
 import Sidebar from "../components/sidebar";
-import { SocketProvider, useSocket } from "../context/socket";
+import { SocketProvider } from "../context/socket";
 import useIsSmallScreen from "../hooks/useSmallScreen";
-import LottieAnimation from "../components/loadingAnimation";
 import Header from "../components/header";
 
-const Chat = () => {
-  const { setSelectedChat, selectedChat } = useAuthContext();
-  const [fetchedUser, setFetchedUser] = useState([]);
+// Define types for User and Chat Props
+interface IUser {
+  _id: string;
+  name: string;
+  picture?: string;
+  id: string;
+  message: string;
+}
+
+const Chat: React.FC = () => {
+  const { setSelectedChat, selectedChat, user } = useAuthContext();
+  const [fetchedUser, setFetchedUser] = useState<IUser[]>([]);
   const url = import.meta.env.VITE_SERVER;
-  const { user } = useAuthContext();
   const isSmallScreen = useIsSmallScreen();
 
-  const fetch = async () => {
+  const fetchUsers = async () => {
     try {
-      await axios
-        .get(`${url}/auth/users`)
-        .then((response) => {
-          if (response) {
-            setFetchedUser(response.data);
-          }
-        })
-        .catch((err) => {
-          console.log("fetching errors", err);
-        });
+      const response = await axios.get<IUser[]>(`${url}/auth/users`);
+      if (response) {
+        setFetchedUser(response.data);
+      }
     } catch (error) {
       console.log("Internal Errors, error:", error);
     }
   };
 
   useEffect(() => {
-    fetch();
+    fetchUsers();
   }, []);
 
   return (
@@ -48,10 +49,10 @@ const Chat = () => {
               <h2 className="text-black text-2xl font-bold text-start mt-3 border-b-2">
                 People
               </h2>
-              {fetchedUser?.length > 1 ? (
-                fetchedUser?.map((data) => {
-                  return (
-                    data._id !== user.id && (
+              {fetchedUser.length > 0 ? (
+                fetchedUser.map(
+                  (data) =>
+                    data._id !== user?.id && (
                       <ChatList
                         name={data.name}
                         id={data._id}
@@ -60,8 +61,7 @@ const Chat = () => {
                         onClick={() => setSelectedChat(data)}
                       />
                     )
-                  );
-                })
+                )
               ) : (
                 <h3 className="w-full h-[200px] text-lg text-neutral-700 flex items-center justify-center">
                   No users Found
@@ -81,7 +81,9 @@ const Chat = () => {
             </div>
           )}
           {isSmallScreen && selectedChat && (
-            <div className="fixed inset-0 z-50">{<SingleChat />}</div>
+            <div className="fixed inset-0 z-50">
+              <SingleChat />
+            </div>
           )}
         </div>
       </div>

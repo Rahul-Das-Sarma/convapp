@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuthContext } from "../context/context";
 import ScrollableChats from "./scrollableChats";
 import { GoDotFill } from "react-icons/go";
@@ -10,20 +10,35 @@ import Picker from "emoji-picker-react";
 import { BsEmojiGrin } from "react-icons/bs";
 import LoadingAnimation from "./loadingAnimation";
 
-const SingleChat = () => {
-  const inputRef = useRef(null);
-  const [message, setMessage] = useState("");
-  const [fetchedMessage, setFetchedMessage] = useState([]);
-  const [fetchedUser, setFetchedUser] = useState();
-  const [isTyping, setIsTyping] = useState(false);
+interface IUser {
+  id?: string;
+  name?: string;
+  _id?: string;
+  online?: boolean;
+}
+
+interface IMessage {
+  _id: string;
+  message: string;
+  sender: IUser;
+  receiver: IUser;
+  updatedAt: string;
+}
+
+const SingleChat: React.FC = () => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [message, setMessage] = useState<string>("");
+  const [fetchedMessage, setFetchedMessage] = useState<IMessage[]>([]);
+  const [fetchedUser, setFetchedUser] = useState<IUser | undefined>(undefined);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
   const url = import.meta.env.VITE_SERVER;
   const { selectedChat, setSelectedChat, token, user } = useAuthContext();
-  const [typingUser, setTypingUser] = useState("");
-  const [typingTimer, setTypingTimer] = useState(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [typingUser, setTypingUser] = useState<string>("");
+  const [typingTimer, setTypingTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const { socket, onlineUser, isConnected } = useSocket();
+  const { socket, onlineUser } = useSocket();
   const isSmallScreen = useIsSmallScreen();
 
   const handleFocus = () => {
@@ -39,7 +54,7 @@ const SingleChat = () => {
   const fetchUser = async () => {
     if (!selectedChat) return;
     try {
-      const response = await axios.get(`${url}/auth/user/${selectedChat._id}`);
+      const response = await axios.get(`${url}/auth/user/${selectedChat?._id}`);
       const { data } = response;
       if (data) {
         setFetchedUser((prev) => ({
@@ -56,15 +71,12 @@ const SingleChat = () => {
     if (!selectedChat) return;
     setIsLoading(true);
     try {
-      await axios
-        .get(`${url}/message/${selectedChat._id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        .then((response) => {
-          setFetchedMessage(response.data);
-        });
+      const response = await axios.get(`${url}/message/${selectedChat._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setFetchedMessage(response.data);
     } catch (error) {
       console.log(error);
     } finally {
@@ -75,7 +87,12 @@ const SingleChat = () => {
   const sendMessage = async () => {
     if (message) {
       try {
-        socket.current.emit("new-message", message, user.id, selectedChat._id);
+        socket.current?.emit(
+          "new-message",
+          message,
+          user?.id,
+          selectedChat?._id
+        );
         setMessage("");
         setShowEmojiPicker(false);
       } catch (error) {
@@ -84,7 +101,7 @@ const SingleChat = () => {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       sendMessage();
     }
@@ -94,20 +111,20 @@ const SingleChat = () => {
     sendMessage();
   };
 
-  const handleEmojiSelect = (emojiObject) => {
+  const handleEmojiSelect = (emojiObject: { emoji: string }) => {
     setMessage((prevMessage) => prevMessage + emojiObject.emoji);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
 
-    clearTimeout(typingTimer);
+    if (typingTimer) clearTimeout(typingTimer);
     if (!isTyping) {
-      socket.current.emit("typing", selectedChat._id, user.id);
+      socket.current?.emit("typing", selectedChat?._id, user?.id);
     }
 
     const newTimer = setTimeout(() => {
-      socket.current.emit("stop-typing", selectedChat._id);
+      socket.current?.emit("stop-typing", selectedChat?._id);
     }, 1000);
 
     setTypingTimer(newTimer);
@@ -118,51 +135,55 @@ const SingleChat = () => {
       setSelectedChat(null);
     }
   };
-
   useEffect(() => {
     setShowEmojiPicker(false);
     handleFocus();
+
     if (selectedChat) {
       setFetchedUser(selectedChat);
       fetchMessages();
       fetchUser();
-      socket.current.emit("join-chat", selectedChat._id);
+      socket.current?.emit("join-chat", selectedChat._id);
     }
 
-    return () => socket.current.emit("leave-chat", selectedChat._id);
+    // Cleanup function
+    return () => {
+      // Emit the leave-chat event without returning the socket
+      socket.current?.emit("leave-chat", selectedChat?._id);
+    };
   }, [selectedChat]);
 
   useEffect(() => {
-    socket.current.on("typing", (userId) => {
+    socket.current?.on("typing", (userId: string) => {
       setIsTyping(true);
       setTypingUser(userId);
     });
-    socket.current.on("stop-typing", () => {
+    socket.current?.on("stop-typing", () => {
       setIsTyping(false);
       setTypingUser("");
     });
 
-    socket.current.on("message-sent", (message) => {
+    socket.current?.on("message-sent", (message: IMessage) => {
       setFetchedMessage((prev) => [...prev, message]);
     });
-    socket.current.on("message-received", (message) => {
+    socket.current?.on("message-received", (message: IMessage) => {
       if (
-        message.receiver._id === user.id &&
-        message.sender._id === selectedChat._id
+        message.receiver._id === user?.id &&
+        message.sender._id === selectedChat?._id
       ) {
         setFetchedMessage((prev) => [...prev, message]);
       }
     });
-    socket.current.on("error", (error) => {
+    socket.current?.on("error", (error: any) => {
       console.log(error);
     });
 
     return () => {
-      socket.current.off("typing");
-      socket.current.off("stop-typing");
-      socket.current.off("message-sent");
-      socket.current.off("message-received");
-      socket.current.off("error");
+      socket.current?.off("typing");
+      socket.current?.off("stop-typing");
+      socket.current?.off("message-sent");
+      socket.current?.off("message-received");
+      socket.current?.off("error");
     };
   }, [selectedChat]);
 
@@ -176,12 +197,12 @@ const SingleChat = () => {
             </div>
             <div>
               {fetchedUser?.name}
-              {onlineUser.some((user) => user.userId === fetchedUser._id) && (
+              {onlineUser.some((user) => user?.userId === fetchedUser._id) && (
                 <p className="text-xs flex items-center text-neutral-400">
                   <span>
                     <GoDotFill fill="green" />
                   </span>
-                  {typingUser === selectedChat._id ? "typing..." : "online"}
+                  {typingUser === selectedChat?._id ? "typing..." : "online"}
                 </p>
               )}
             </div>

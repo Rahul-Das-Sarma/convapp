@@ -1,43 +1,52 @@
 import axios from "axios";
-import React, { useState } from "react";
+import { useState, ChangeEvent, KeyboardEvent } from "react";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { Link, useNavigate } from "react-router-dom";
+import { Bounce, toast } from "react-toastify";
 import { useAuthContext } from "../context/context";
+
+// Define the structure of the form data
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+  confirmedPassword: string;
+}
 
 function Register() {
   const url = import.meta.env.VITE_SERVER;
 
-  const [formdata, setFormdata] = useState({
+  const [formdata, setFormdata] = useState<FormData>({
     name: "",
     email: "",
     password: "",
     confirmedPassword: "",
   });
 
-  const [viewPassword, setViewPassword] = useState(false);
-  const [viewPasswordConfrim, setViewPasswordConfirm] = useState(false);
+  const [viewPassword, setViewPassword] = useState<boolean>(false);
+  const [viewPasswordConfirm, setViewPasswordConfirm] =
+    useState<boolean>(false);
   const { setToken } = useAuthContext();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormdata({ ...formdata, [e.target.name]: e.target.value });
   };
 
   const handleViewPassword = () => {
     setViewPassword((prev) => !prev);
   };
+
   const handleViewPasswordConfirm = () => {
     setViewPasswordConfirm((prev) => !prev);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    // e.preventDefault();
     if (formdata.email.includes("@") && formdata.password.length > 7) {
       if (formdata.password !== formdata.confirmedPassword) {
         toast.error("Password is not matching", {
           position: "top-right",
-
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: false,
@@ -72,7 +81,7 @@ function Register() {
         })
         .catch((err) => {
           console.log(err);
-          toast.error(err.response.data, {
+          toast.error(err.response.data.message || "An error occurred", {
             position: "top-right",
             hideProgressBar: false,
             closeOnClick: true,
@@ -86,7 +95,7 @@ function Register() {
         });
     } else {
       toast.error(
-        "Invalid email or password & password must have atleast 8 characters",
+        "Invalid email or password & password must have at least 8 characters",
         {
           position: "top-right",
           hideProgressBar: false,
@@ -102,9 +111,9 @@ function Register() {
     }
   };
 
-  const handleKeydown = (e) => {
+  const handleKeydown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      handleSubmit(e);
+      handleSubmit();
     }
   };
 
@@ -172,17 +181,17 @@ function Register() {
               className="w-full h-10 px-2 text-black bg-transparent border-b-[1px] border-gray-200  focus:border-black focus:outline-none transition duration-1000 ease-in-out delay-200"
               placeholder="Confirm Password"
               name="confirmedPassword"
-              type={viewPasswordConfrim ? "text" : "password"}
+              type={viewPasswordConfirm ? "text" : "password"}
               onChange={handleChange}
               value={formdata.confirmedPassword}
               onKeyDown={handleKeydown}
             />
             <span
               role="button"
-              className="text-black absolute top-[10px] right-[10px] "
+              className="text-black absolute top-[10px] right-[10px]"
               onClick={handleViewPasswordConfirm}
             >
-              {viewPasswordConfrim ? (
+              {viewPasswordConfirm ? (
                 <FaRegEyeSlash className="w-6 h-4" />
               ) : (
                 <FaRegEye className="w-6 h-4" />
@@ -203,7 +212,10 @@ function Register() {
           </div>
           <button
             className="focus:outline-none bg-gradient-to-r from-rose-600 to-indigo-800 hover:delay-1000 hover:from-indigo-800 hover:to-rose-600 w-[15rem] rounded-full"
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.preventDefault(); // Prevent default form submission
+              handleSubmit(); // Call the async function
+            }}
           >
             SignUp
           </button>

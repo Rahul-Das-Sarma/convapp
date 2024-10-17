@@ -1,6 +1,8 @@
-import React from "react";
-
-const SameSender = ({ message, scrollRef, time }) => {
+interface ISameSender {
+  message: string;
+  time: string | Date;
+}
+const SameSender = ({ message, time }: ISameSender) => {
   const date = new Date(time).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",

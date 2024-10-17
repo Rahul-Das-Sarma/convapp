@@ -1,6 +1,8 @@
-import React from "react";
-
-const OtherSender = ({ message, scrollRef, time }) => {
+interface IOtherSender {
+  message: string;
+  time: string | Date;
+}
+const OtherSender = ({ message, time }: IOtherSender) => {
   const date = new Date(time).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
